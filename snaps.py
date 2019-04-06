@@ -1,6 +1,10 @@
 import sys
+import datetime
 from getpass import getpass
+from collections import defaultdict
+
 import requests
+import plotille
 
 
 class BadLoginException(Exception):
@@ -37,6 +41,9 @@ class API:
 	def get_events(self):
 		return self.get('events/')
 
+	def get_event(self, event_id):
+		return self.get(f'events/{event_id}/')
+
 	def create_event(self, event_name):
 		return self.post(f'events/', {
 			'name': event_name,
@@ -47,6 +54,9 @@ class API:
 
 	def create_drink_event(self, event_id):
 		return self.post(f'events/{event_id}/create_drinkevent/')
+
+	def get_users(self):
+		return self.get('users/')
 
 
 def choose(title, options, kwopts={}):
@@ -75,6 +85,51 @@ def choose(title, options, kwopts={}):
 			return o - 1
 
 
+def int_formatter(val, chars, delta, left=False):
+	if left:
+		dt = datetime.datetime.fromtimestamp(val)
+		val = dt.strftime('%H:%M')
+	else:
+		val = int(val)
+
+	align = '<' if left else ''
+	return '{:{}{}}'.format(val, align, chars)
+
+
+def plot_drink_events(event, users):
+	usernames = {}
+	for user in users:
+		usernames[user['id']] = user['username']
+
+	drink_events = event['drink_events']
+
+	user_drink_events = defaultdict(list)
+
+	for drink_event in drink_events:
+		drink_event['datetime'] = datetime.datetime.fromisoformat(drink_event['datetime'].rstrip('Z'))
+
+		user_drink_events[drink_event['user']].append(drink_event)
+
+	first_de = min(drink_events, key=lambda de: de['datetime'])
+	last_de = max(drink_events, key=lambda de: de['datetime'])
+
+	fig = plotille.Figure()
+	fig.width = 60
+	fig.height = 30
+	fig.register_label_formatter(datetime.datetime, None)
+	fig.register_label_formatter(float, int_formatter)
+	fig.set_x_limits(min_=first_de['datetime'].timestamp(), max_=last_de['datetime'].timestamp())
+	fig.set_y_limits(min_=0, max_=max(len(evs) for evs in user_drink_events.values()))
+	fig.color_mode = 'byte'
+
+	for user_id, evs in user_drink_events.items():
+		xs = [e['datetime'] for e in evs]
+		ys = list(range(1, len(evs) + 1))
+		fig.plot(xs, ys, lc=user_id, label=usernames[user_id])
+
+	print(fig.show(legend=True))
+
+
 if __name__ == '__main__':
 	while True:
 		username = input('Username: ')
@@ -89,6 +144,7 @@ if __name__ == '__main__':
 	events = api.get_events()
 
 	options = [e['name'] for e in events]
+
 	event_index = choose('Choose event:', options, {
 		'c': 'create',
 	})
@@ -100,6 +156,8 @@ if __name__ == '__main__':
 		event_id = api.create_event(event_name)['id']
 
 		print(f'Created {event_name}')
+
+		event = api.get_event(event_id)
 	else:
 		event = events[event_index]
 		event_id = event['id']
@@ -108,6 +166,9 @@ if __name__ == '__main__':
 		print(f'Joined {event["name"]}')
 
 	while True:
+		users = api.get_users()
+		plot_drink_events(event, users)
+
 		try:
 			a = input('Have drinked? ')
 		except (KeyboardInterrupt, EOFError):
@@ -117,3 +178,5 @@ if __name__ == '__main__':
 			api.create_drink_event(event_id)
 		else:
 			print(':(')
+
+		event = api.get_event(event_id)
