@@ -146,7 +146,7 @@ def plot_drink_events(event, users):
 	for user_id, evs in user_des:
 		xs = [e['datetime'] for e in evs]
 		ys = list(range(1, len(evs) + 1))
-		fig.plot(xs, ys, lc=user_id, label=f'{usernames[user_id]} ({len(evs) + 1})')
+		fig.plot(xs, ys, lc=user_id, label=f'{usernames[user_id]} ({len(evs)})')
 
 	print(fig.show(legend=True))
 
