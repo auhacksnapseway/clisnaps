@@ -28,9 +28,14 @@ class API:
 
 	def request(self, method, path, *args, **kwargs):
 		url = self.API_PREFIX + path
-		return method(url, *args, **kwargs, headers={
+		data = method(url, *args, **kwargs, headers={
 			'Authorization': f'Token {self.token}'
 		}).json()
+
+		if isinstance(data, dict) and 'success' in data and not data['success']:
+			print(data)
+
+		return data
 
 	def get(self, *args, **kwargs):
 		return self.request(requests.get, *args, **kwargs)
