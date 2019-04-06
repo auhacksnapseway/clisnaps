@@ -2,9 +2,18 @@ import sys
 import datetime
 from getpass import getpass
 from collections import defaultdict
+import argparse
 
 import requests
 import plotille
+
+
+def terminal_size():
+	import fcntl, termios, struct
+	h, w, hp, wp = struct.unpack('HHHH',
+		fcntl.ioctl(0, termios.TIOCGWINSZ,
+		struct.pack('HHHH', 0, 0, 0, 0)))
+	return w, h
 
 
 class BadLoginException(Exception):
@@ -102,11 +111,14 @@ def int_formatter(val, chars, delta, left=False):
 
 
 def plot_drink_events(event, users):
+	drink_events = event['drink_events']
+	if not drink_events:
+		print('No drink events so far...')
+		return
+
 	usernames = {}
 	for user in users:
 		usernames[user['id']] = user['username']
-
-	drink_events = event['drink_events']
 
 	user_drink_events = defaultdict(list)
 
@@ -118,27 +130,39 @@ def plot_drink_events(event, users):
 	first_de = min(drink_events, key=lambda de: de['datetime'])
 	last_de = max(drink_events, key=lambda de: de['datetime'])
 
+	w, h = terminal_size()
+	margin_w, margin_h = [20] * 2
+
 	fig = plotille.Figure()
-	fig.width = 60
-	fig.height = 30
-	fig.register_label_formatter(datetime.datetime, None)
+	fig.width = w - margin_w
+	fig.height = h - margin_h
 	fig.register_label_formatter(float, int_formatter)
 	fig.set_x_limits(min_=first_de['datetime'].timestamp(), max_=last_de['datetime'].timestamp())
 	fig.set_y_limits(min_=0, max_=max(len(evs) for evs in user_drink_events.values()))
 	fig.color_mode = 'byte'
 
-	for user_id, evs in user_drink_events.items():
+	user_des = sorted(user_drink_events.items(), key=lambda des: -len(des[1]))
+
+	for user_id, evs in user_des:
 		xs = [e['datetime'] for e in evs]
 		ys = list(range(1, len(evs) + 1))
-		fig.plot(xs, ys, lc=user_id, label=usernames[user_id])
+		fig.plot(xs, ys, lc=user_id, label=f'{usernames[user_id]} ({len(evs) + 1})')
 
 	print(fig.show(legend=True))
 
 
 if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description='snaps')
+	parser.add_argument('--test', action='store_true')
+
+	args = parser.parse_args()
+
 	while True:
-		username = input('Username: ')
-		password = getpass('Password: ')
+		if args.test:
+			username, password = ['test'] * 2
+		else:
+			username = input('Username: ')
+			password = getpass('Password: ')
 
 		try:
 			api = API(username, password)
@@ -150,9 +174,12 @@ if __name__ == '__main__':
 
 	options = [e['name'] for e in events]
 
-	event_index = choose('Choose event:', options, {
-		'c': 'create',
-	})
+	if args.test:
+		event_index = 0
+	else:
+		event_index = choose('Choose event:', options, {
+			'c': 'create',
+		})
 
 	if event_index is None:
 		sys.exit()
