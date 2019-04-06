@@ -116,6 +116,8 @@ def int_formatter(val, chars, delta, left=False):
 
 
 def plot_drink_events(event, users):
+	global y_previous
+
 	drink_events = event['drink_events']
 	if not drink_events:
 		print('No drink events so far...')
