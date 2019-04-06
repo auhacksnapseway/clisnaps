@@ -99,12 +99,17 @@ def choose(title, options, kwopts={}):
 			return o - 1
 
 
+y_previous = set()
 def int_formatter(val, chars, delta, left=False):
 	if left:
 		dt = datetime.datetime.fromtimestamp(val)
 		val = dt.strftime('%H:%M')
 	else:
 		val = int(val)
+		if val in y_previous:
+			val = ''
+		else:
+			y_previous.add(val)
 
 	align = '<' if left else ''
 	return '{:{}{}}'.format(val, align, chars)
@@ -148,6 +153,7 @@ def plot_drink_events(event, users):
 		ys = list(range(1, len(evs) + 1))
 		fig.plot(xs, ys, lc=user_id, label=f'{usernames[user_id]} ({len(evs)})')
 
+	y_previous = set()
 	print(fig.show(legend=True))
 
 
