@@ -21,7 +21,7 @@ class BadLoginException(Exception):
 
 
 class API:
-	URL_PREFIX = 'https://snapsecounter.serveo.net/'
+	URL_PREFIX = 'https://snaps.dropud.nu/'
 	LOGIN_URL = URL_PREFIX + 'api-token-auth/'
 	API_PREFIX = URL_PREFIX + 'api/'
 
